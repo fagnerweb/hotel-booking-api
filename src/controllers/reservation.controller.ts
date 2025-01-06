@@ -1,38 +1,25 @@
 import { Request, RequestHandler, Response } from "express";
-import { z } from "zod";
 import * as service from "../services/Reservation";
+import { reservationCreateSchema, reservationSchema, roomReservationSchema } from "../schemas/reservation";
+import { prisma } from "../libs/prisma";
+import { ExtendedRequest } from "../@types/extended-request";
+import { getRoomById } from "../services/Room";
 
 export const createReservation: RequestHandler = async (req: Request, res: Response) => {
-  const reservationSchema = z.object({
-    userId: z.number(),
-    roomId: z.number(),
-    start: z.coerce.date(),
-    end: z.coerce.date()
-  })
-  .refine((data) => data.start < data.end, {
-    message: "A data de início deve ser menor que a data de término.",
-    path: ["start"]
-  })
-  .refine(
-    (data) => {
-      const diffInMs = data.end.getTime() - data.start.getTime();
-      const diffInHours = diffInMs / (1000 * 60 * 60);
-      return diffInHours >= 1;
-    }, {
-      message: "A reserva deve ter pelo menos 1 hora de duração.",
-      path: ["end"]
-    }
-  )
-  
-
-  const result = reservationSchema.safeParse(req.body)
+  const result = reservationCreateSchema.safeParse(req.body)
 
   if (!result.success) {
     res.status(400).json({
       message: "Erro na validação",
       errors: result.error.issues
     })
-    return
+    return 
+  }
+
+  const room = await getRoomById(result.data.roomId)
+  if (!room) {
+    res.json({ message: 'Não existe o quarto informado'})
+    return 
   }
 
   const reservation = await service.createReservation(result.data)
@@ -44,16 +31,24 @@ export const createReservation: RequestHandler = async (req: Request, res: Respo
 
   res.json(reservation)
 }
-export const getUserReservations: RequestHandler = (req: Request, res: Response) => {
-  res.json({
-    reservations: []
-  })
-}
-export const getRoomReservations: RequestHandler = async (req: Request, res: Response) => {
-  const roomReservationSchema = z.object({
-    roomId: z.coerce.number()
+export const getUserReservations = async (req: ExtendedRequest, res: Response) => {
+  if (!req.user!.id) {
+    res.json({ error: 'Erro, se autentifique na plataforma'})
+    return
+  }
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id }
   })
 
+  const reservations = await prisma.reservation.findMany({
+    where: {
+      userId: user?.id
+    }
+  })
+
+  res.json({ reservations })
+}
+export const getRoomReservations: RequestHandler = async (req: Request, res: Response) => {
   const result = roomReservationSchema.safeParse(req.params)
 
   if (!result.success) {
@@ -73,10 +68,6 @@ export const getRoomReservations: RequestHandler = async (req: Request, res: Res
   res.json(roomReservation)
 }
 export const cancelReservation: RequestHandler = async (req: Request, res: Response) => {
-  const reservationSchema = z.object({
-    id: z.coerce.number()
-  })
-
   const result = reservationSchema.safeParse(req.params)
 
   if (!result.success) {

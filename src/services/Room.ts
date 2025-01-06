@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client"
-import { prisma } from "../lib/prisma"
+import { prisma } from "../libs/prisma"
 
 export const createRoom = async (data: Prisma.RoomCreateInput) => {
   try {
@@ -13,6 +13,15 @@ export const createRoom = async (data: Prisma.RoomCreateInput) => {
 export const getAllRooms = async () => {
   try {
     return await prisma.room.findMany();
+  } catch(err) {
+    console.log(err);
+    return false
+  }
+}
+
+export const getRoomById = async (id: number) => {
+  try {
+    return await prisma.room.findUnique({ where: { id }});
   } catch(err) {
     console.log(err);
     return false

@@ -1,18 +1,12 @@
 import { Request, RequestHandler, Response } from "express";
-import z from 'zod';
 import * as service from '../services/Room'
+import { roomUpdateSchema, roomSchema, roomDeleteSchema } from "../schemas/room";
 
 export const getAllRooms = async (req: Request, res: Response) => {
   const rooms = await service.getAllRooms();  
   res.json(rooms)
 }
 export const createRoom: RequestHandler = async (req: Request, res: Response) => {
-  const roomSchema = z.object({
-    name: z.string(),
-    capacity: z.number(),
-    resources: z.string(),
-  })
-
   const result = roomSchema.safeParse(req.body)
 
   if (!result.success) {
@@ -29,20 +23,13 @@ export const createRoom: RequestHandler = async (req: Request, res: Response) =>
 
   res.status(201).json({ create: true })
 }
-export const updateRoom: RequestHandler = async (req: Request, res: Response) => {
-  const roomSchema = z.object({
-    id: z.coerce.number(),
-    name: z.string(),
-    capacity: z.number(),
-    resources: z.string(),
-  })
-  
+export const updateRoom: RequestHandler = async (req: Request, res: Response) => {  
   const data = {
     id: req.params.id,
     ...req.body
   }
 
-  const result = roomSchema.safeParse(data)
+  const result = roomUpdateSchema.safeParse(data)
 
   if (!result.success) {
     res.json({
@@ -66,10 +53,6 @@ export const updateRoom: RequestHandler = async (req: Request, res: Response) =>
   })
 }
 export const deleteRoom: RequestHandler = async (req: Request, res: Response) => {
-  const roomDeleteSchema = z.object({
-    id: z.coerce.number()
-  })
-
   const result = roomDeleteSchema.safeParse(req.params)
 
   if (!result.success) {

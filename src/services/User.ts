@@ -1,21 +1,13 @@
-import { UserDTO } from "../@types";
-import { prisma } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
+import { prisma } from "../libs/prisma";
 import bcrypt from 'bcrypt';
 
-export const createUser = async (data: UserDTO) => {
-  try {  
-    const user = await getUserByEmail(data.email)
+export const createUser = async (data: Prisma.UserCreateInput) => {
+  data.password = bcrypt.hashSync(data.password, 10);
+  const newUser = await prisma.user.create({ data })  
 
-    if (!user) {
-      data.password = bcrypt.hashSync(data.password, 10);
-      return await prisma.user.create({ data })
-    } else {
-      return false;
-    }
-
-  } catch (err) {
-    console.log(err)
-    return false;
+  return {
+    ...newUser    
   }
 }
 

@@ -1,16 +1,15 @@
 import { Prisma } from "@prisma/client";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../libs/prisma";
 
 export const createReservation = async (data: Prisma.ReservationUncheckedCreateInput) => {
   try {
     const existingReservation = await checkRoomAvailability(new Date(data.start), new Date(data.end), data.roomId)
-    
+
     if (existingReservation) {
       return false;
     }
 
-    await prisma.reservation.create({ data })
-    return true
+    return await prisma.reservation.create({ data })
   } catch (err) {
     console.log(err)
     return false;
@@ -18,23 +17,30 @@ export const createReservation = async (data: Prisma.ReservationUncheckedCreateI
 }
 
 export const checkRoomAvailability = async (start: Date, end: Date, roomId: number) => {
-  try {
+  try {    
     return await prisma.reservation.findFirst({
       where: {
         roomId,
-        OR: [
+        AND: [
           {
-            start: { lte: end },
-            end: { gte: start },
-          }
-        ]
-      }
-    })  
+            start: {
+              lte: start, // O início da reserva deve ser anterior ou igual ao fim do intervalo solicitado
+            },
+          },
+          {
+            end: {
+              gte: end, // O fim da reserva deve ser posterior ou igual ao início do intervalo solicitado
+            },
+          },
+        ],
+      },
+    });
   } catch (err) {
-    console.log(err)
-    return false
-  }  
-}
+    console.error('Erro ao verificar disponibilidade:', err);
+    return false;
+  }
+};
+
 
 export const listRoomReservations = async (roomId: number) => {
   try {
